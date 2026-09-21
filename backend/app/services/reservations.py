@@ -9,12 +9,24 @@ from app.core.database_pool import db_pool
 CENT = Decimal("0.01")
 
 
-async def _fetch_one(query: str, **params):
+async def _fetch_all(query: str, **params):
     if not db_pool.session_factory:
         await db_pool.initialize()
     async with await db_pool.get_session() as session:
         result = await session.execute(text(query), params)
-        return result.fetchone()
+        return result.fetchall()
+
+
+async def _fetch_one(query: str, **params):
+    return (await _fetch_all(query, **params))[0]
+
+
+async def list_properties(tenant_id: str):
+    rows = await _fetch_all(
+        "SELECT id, name, timezone FROM properties WHERE tenant_id = :tenant_id ORDER BY id",
+        tenant_id=tenant_id,
+    )
+    return [{"id": r.id, "name": r.name, "timezone": r.timezone} for r in rows]
 
 
 async def calculate_monthly_revenue(property_id: str, tenant_id: str, month: int, year: int) -> Decimal:
